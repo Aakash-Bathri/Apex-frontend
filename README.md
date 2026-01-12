@@ -1,3 +1,9 @@
+<!-- Background: #0a0e27 (deep navy, darker than your darkest color)
+Card: #1B262C (your primary dark)
+Accents: rgba(50, 130, 184, 0.1) and 0.2 (your #3282B8 with transparency)
+Text: #BBE1FA (your light blue)
+Borders: Subtle borders with your accent colors at low opacity -->
+
 # Welcome to React Router!
 
 A modern, production-ready template for building full-stack React applications using React Router.
