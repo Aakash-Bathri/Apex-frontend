@@ -10,7 +10,7 @@ function OAuthSuccess() {
 
     if (token) {
       localStorage.setItem("token", token);
-      navigate("/"); // or dashboard
+      navigate("/dashboard"); // or dashboard
     }
   }, []);
 
