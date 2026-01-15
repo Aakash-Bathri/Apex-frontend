@@ -13,8 +13,9 @@ export default [
 
   layout("routes/layouts/protectedRoutes.tsx", { id: "protected-layout" }, [
     route("logout", "routes/auth/logout.tsx"),
-    route("profile", "routes/profile/profile.tsx"),
+    // route("profile", "routes/profile/profile.tsx"),
     route("dashboard", "routes/dashboard/dashboard.tsx"),
     route("leaderboard", "routes/leaderboard/leaderboard.tsx"),
+    route("game/:gameId", "routes/game/match.tsx"),
   ]),
 ] satisfies RouteConfig;

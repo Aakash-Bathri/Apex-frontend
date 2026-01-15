@@ -11,14 +11,16 @@ import {
 } from "react-icons/fa";
 import Navbar from "~/components/navbar";
 import { RANKS, getRankInfo } from "~/utils/rankUtils";
+import { useSocket } from "~/context/SocketContext";
 
 const CATEGORIES: Record<string, string[]> = {
   "CS": ["DSA", "OOPS", "OS", "DBMS", "CN"],
 };
 
 export default function Dashboard() {
-  const data = useRouteLoaderData("protected-layout");
+  const data: any = useRouteLoaderData("protected-layout");
   const navigate = useNavigate();
+  const { socket, isConnected } = useSocket();
 
   // UI State
   const [overlay, setOverlay] = useState<null | "public" | "private" | "join">(null);
@@ -32,7 +34,36 @@ export default function Dashboard() {
   const losses = data?.stats?.overall?.losses || 0;
   const totalGames = wins + losses;
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-  const recentMatches = (data?.matches || []).slice(0, 3); // Last 3 matches
+  const recentMatches = (data?.matches || []).slice(0, 3);
+
+  // Socket Event Listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleGameStart = ({ gameId }: { gameId: string }) => {
+      console.log("Game Started! Navigating to:", gameId);
+      navigate(`/game/${gameId}`);
+    };
+
+    const handleError = ({ message }: { message: string }) => {
+      alert(message);
+      // Maybe close overlay if error?
+    };
+
+    socket.on("game_started", handleGameStart);
+    socket.on("match_found", ({ gameId }) => {
+      console.log("Match Found! Navigating to:", gameId);
+      navigate(`/game/${gameId}`);
+    });
+    socket.on("error", handleError);
+
+    return () => {
+      socket.off("game_started", handleGameStart);
+      socket.off("match_found");
+      socket.off("error", handleError);
+    };
+  }, [socket, navigate]);
+
 
   // Fetch top leaderboard
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
@@ -62,18 +93,15 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0e27] text-white selection:bg-cyan-500/30 overflow-x-hidden relative">
-      {/* Ambient Background Effects */}
       <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/10 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Top Bar */}
       <Navbar data={data} rank={rank} handleLogout={handleLogout} />
 
-      {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-6 md:py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
 
-          {/* Player Stats Card (Left - 2/3) */}
+          {/* Stats Card */}
           <div className="col-span-1 lg:col-span-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
               <FaTrophy size={100} className="md:w-[120px] md:h-[120px]" />
@@ -138,7 +166,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* New Game Setup (Right - 1/3) */}
+          {/* New Game Setup */}
           <div className="col-span-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 flex flex-col">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <FaGamepad className="text-blue-400" /> New Game
@@ -190,13 +218,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="mt-4 flex flex-col gap-3">
               <button
                 onClick={() => setOverlay("public")}
-                className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 group"
+                disabled={!isConnected}
+                className={`w-full py-4 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 group ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <span>Play Now</span>
+                <span>{isConnected ? "Play Now" : "Connecting..."}</span>
                 <span className="bg-white/20 text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider">
                   {selectedTopic === "RANDOM" ? `${selectedCategory}` : selectedTopic}
                 </span>
@@ -205,13 +233,15 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setOverlay("private")}
-                  className="py-3 rounded-xl font-medium bg-white/5 hover:bg-white/10 text-white/80 text-xs flex items-center justify-center gap-2 transition-colors"
+                  disabled={!isConnected}
+                  className="py-3 rounded-xl font-medium bg-white/5 hover:bg-white/10 text-white/80 text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 >
                   <FaLock /> Private Room
                 </button>
                 <button
                   onClick={() => setOverlay("join")}
-                  className="py-3 rounded-xl font-medium bg-white/5 hover:bg-white/10 text-white/80 text-xs flex items-center justify-center gap-2 transition-colors"
+                  disabled={!isConnected}
+                  className="py-3 rounded-xl font-medium bg-white/5 hover:bg-white/10 text-white/80 text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 >
                   <FaKeyboard /> Join Code
                 </button>
@@ -221,9 +251,8 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Recent Match History & Top 3 Leaderboard */}
+        {/* History & Leaderboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Recent Matches */}
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
@@ -236,7 +265,6 @@ export default function Dashboard() {
                 View All
               </button>
             </div>
-
             <div className="space-y-3">
               {recentMatches.length === 0 ? (
                 <div className="text-center py-8 text-white/30 text-sm">
@@ -247,12 +275,12 @@ export default function Dashboard() {
                   <div key={match.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${match.result === 'win' ? 'bg-green-500/10 text-green-400' :
-                          match.result === 'loss' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'
+                        match.result === 'loss' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'
                         }`}>
                         {match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : 'D'}
                       </div>
                       <div>
-                        <div className="font-medium text-sm">{match.opponent.name}</div>
+                        <div className="font-medium text-sm">{match.opponent?.name || match.opponentId}</div>
                         <div className="text-xs text-white/40">{match.topic}</div>
                       </div>
                     </div>
@@ -266,7 +294,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Top 3 Leaderboard */}
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
@@ -279,65 +306,47 @@ export default function Dashboard() {
                 View All
               </button>
             </div>
-
             <div className="space-y-3">
-              {topPlayers.length === 0 ? (
-                <div className="text-center py-8 text-white/30 text-sm">
-                  Loading top players...
-                </div>
-              ) : (
-                topPlayers.map((player: any, index: number) => {
-                  const playerRank = getRankInfo(player.rating).rank;
-                  return (
-                    <div
-                      key={player.userId}
-                      onClick={() => navigate(`/profile/${player.username}`)}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5"
-                    >
-                      <span className={`font-mono text-sm font-bold ${index === 0 ? 'text-yellow-400' :
-                          index === 1 ? 'text-gray-300' :
-                            'text-orange-400'
-                        }`}>
-                        #{index + 1}
-                      </span>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">{player.username}</div>
-                        <div className={`text-xs ${playerRank.color}`}>{playerRank.name}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono font-bold text-sm">{player.rating}</div>
-                        <div className="text-xs text-white/40">{player.winRate}% WR</div>
-                      </div>
+              {topPlayers.map((player: any, index: number) => {
+                const playerRank = getRankInfo(player.rating).rank;
+                return (
+                  <div key={player.userId} onClick={() => navigate(`/profile/${player.username}`)} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5">
+                    <span className={`font-mono text-sm font-bold ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-orange-400'}`}>#{index + 1}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">{player.username}</div>
+                      <div className={`text-xs ${playerRank.color}`}>{playerRank.name}</div>
                     </div>
-                  );
-                })
-              )}
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-sm">{player.rating}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </main>
 
-      {/* Overlays */}
       {overlay && (
         <Overlay onClose={() => setOverlay(null)}>
           {overlay === "public" && (
             <PublicOverlay
-              topic={selectedTopic} // Pass chosen topic
+              topic={selectedTopic}
               onClose={() => setOverlay(null)}
-              onStart={(id: string) => navigate(`/game/${id}`)}
+              socket={socket}
             />
           )}
           {overlay === "private" && (
             <PrivateOverlay
-              topic={selectedTopic} // Pass chosen topic
+              topic={selectedTopic}
               onClose={() => setOverlay(null)}
-              onCreate={(code: string) => { }}
+              socket={socket}
             />
           )}
           {overlay === "join" && (
             <JoinOverlay
               onClose={() => setOverlay(null)}
-              onJoin={(id: string) => navigate(`/game/${id}`)}
+              socket={socket}
             />
           )}
         </Overlay>
@@ -363,94 +372,48 @@ function Overlay({ children, onClose }: any) {
   );
 }
 
-function PublicOverlay({ topic, onClose, onStart }: any) {
-  const [loading, setLoading] = useState(true); // Start loading immediately
-
-  // Auto-start on mount since topic is already selected
-  useState(() => {
-    const start = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/game/public`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              topic: topic,
-            }),
-          }
-        );
-
-        if (!res.ok) throw new Error("Failed to start");
-        const data = await res.json();
-        onStart(data.gameId);
-      } catch (error) {
-        alert("Failed to start matchmaking");
-        onClose();
-      } finally {
-        setLoading(false);
-      }
-    };
-    start();
-  });
+function PublicOverlay({ topic, onClose, socket }: any) {
+  useEffect(() => {
+    if (socket) {
+      socket.emit("join_queue", { topic, rating: 1000 }); // Pass rating from props ideally
+    }
+  }, [socket, topic]);
 
   return (
     <div className="text-center w-full max-w-sm mx-auto">
       <div className="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-current"></div>
       </div>
-
       <h2 className="text-xl font-bold mb-2">Finding Match...</h2>
       <p className="text-white/50 text-sm mb-6">
         Looking for an opponent in <span className="text-white font-bold">{topic}</span>
       </p>
-
-      <button
-        onClick={onClose}
-        className="w-full py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-      >
+      <button onClick={onClose} className="w-full py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors">
         Cancel
       </button>
     </div>
   );
 }
 
-function PrivateOverlay({ topic, onClose, onCreate: parentOnCreate }: any) {
-  const [loading, setLoading] = useState(false);
+function PrivateOverlay({ topic, onClose, socket }: any) {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const create = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/game/private`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          // Now passing topic if backend supports it for private games
-          // Assuming backend might need update, but sending it doesn't hurt or is required
-          body: JSON.stringify({
-            topic: topic
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to create");
-      const data = await res.json();
-      setCreatedCode(data.code);
-    } catch (error) {
-      alert("Failed to create game");
-    } finally {
+  useEffect(() => {
+    if (!socket) return;
+    const handleCreated = ({ code }: { code: string }) => {
+      setCreatedCode(code);
       setLoading(false);
-    }
+    };
+    socket.on("private_created", handleCreated);
+    return () => {
+      socket.off("private_created", handleCreated);
+    };
+  }, [socket]);
+
+  const create = () => {
+    setLoading(true);
+    socket?.emit("create_private", { topic });
   };
 
   if (createdCode) {
@@ -462,20 +425,15 @@ function PrivateOverlay({ topic, onClose, onCreate: parentOnCreate }: any) {
         <h2 className="text-xl font-bold mb-2">Game Created!</h2>
         <p className="text-white/50 text-sm mb-6">
           Topic: <span className="text-white font-bold">{topic}</span><br />
-          Share this code with your friend to start.
+          Share:
         </p>
-
         <div className="bg-black/30 p-4 rounded-xl border border-white/5 mb-8">
           <div className="text-3xl font-mono font-bold tracking-[0.2em] text-cyan-400 select-all">
             {createdCode}
           </div>
         </div>
-
-        <button
-          onClick={onClose}
-          className="w-full py-3.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white transition-colors"
-        >
-          Done
+        <button onClick={onClose} className="w-full py-3.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white transition-colors">
+          Done (Waiting...)
         </button>
       </div>
     );
@@ -490,19 +448,9 @@ function PrivateOverlay({ topic, onClose, onCreate: parentOnCreate }: any) {
       <p className="text-white/50 text-sm mb-8">
         Create a private <span className="text-white font-bold">{topic}</span> room.
       </p>
-
       <div className="flex gap-3">
-        <button
-          onClick={onClose}
-          className="flex-1 py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={create}
-          disabled={loading}
-          className="flex-1 py-3.5 rounded-xl font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/25 transition-all disabled:opacity-50"
-        >
+        <button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+        <button onClick={create} disabled={loading} className="flex-1 py-3.5 rounded-xl font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/25 transition-all disabled:opacity-50">
           {loading ? "Creating..." : "Create Room"}
         </button>
       </div>
@@ -510,35 +458,14 @@ function PrivateOverlay({ topic, onClose, onCreate: parentOnCreate }: any) {
   );
 }
 
-function JoinOverlay({ onClose, onJoin }: any) {
+function JoinOverlay({ onClose, socket }: any) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const join = async () => {
+  const join = () => {
     if (!code) return;
     setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/game/join`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ code }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to join");
-      const data = await res.json();
-      onJoin(data.gameId);
-    } catch (error) {
-      alert("Invalid code or full room");
-    } finally {
-      setLoading(false);
-    }
+    socket?.emit("join_private", { code });
   };
 
   return (
@@ -547,10 +474,7 @@ function JoinOverlay({ onClose, onJoin }: any) {
         <FaKeyboard size={28} />
       </div>
       <h2 className="text-xl font-bold mb-2">Join Game</h2>
-      <p className="text-white/50 text-sm mb-8">
-        Enter the 6-digit code shared by your friend.
-      </p>
-
+      <p className="text-white/50 text-sm mb-8">Enter code:</p>
       <input
         type="text"
         placeholder="ENTER CODE"
@@ -559,19 +483,9 @@ function JoinOverlay({ onClose, onJoin }: any) {
         className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-center text-xl font-mono font-bold tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-colors mb-8"
         maxLength={6}
       />
-
       <div className="flex gap-3">
-        <button
-          onClick={onClose}
-          className="flex-1 py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={join}
-          disabled={loading || code.length < 6}
-          className="flex-1 py-3.5 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+        <button onClick={join} disabled={loading || code.length < 6} className="flex-1 py-3.5 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50">
           {loading ? "Joining..." : "Join Game"}
         </button>
       </div>
