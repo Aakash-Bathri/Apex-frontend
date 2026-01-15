@@ -32,9 +32,25 @@ const Navbar = ({ data, rank, handleLogout }: NavbarProps) => {
             </div>
             <span className="text-2xl font-black tracking-tighter text-white">APEX</span>
           </Link>
+
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center gap-1 ml-8">
+            <Link
+              to="/dashboard"
+              className="px-4 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors font-medium"
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/leaderboard"
+              className="px-4 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors font-medium"
+            >
+              Leaderboard
+            </Link>
+          </div>
         </div>
         <div className="flex items-center gap-4">
-          <Link to="/profile" className="flex items-center gap-3 group">
+          <Link to={`/profile/${data?.user?.name || 'player'}`} className="flex items-center gap-3 group">
             <div className="hidden md:flex flex-col items-end mr-2">
               <span className="text-sm font-medium text-white/90">
                 {data?.user?.name || "Player"}
