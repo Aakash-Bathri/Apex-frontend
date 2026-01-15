@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useRouteLoaderData } from "react-router";
 import {
   FaGamepad,
@@ -7,6 +7,7 @@ import {
   FaTrophy,
   FaChartLine,
   FaHistory,
+  FaCrown,
 } from "react-icons/fa";
 import Navbar from "~/components/navbar";
 import { RANKS, getRankInfo } from "~/utils/rankUtils";
@@ -31,6 +32,26 @@ export default function Dashboard() {
   const losses = data?.stats?.overall?.losses || 0;
   const totalGames = wins + losses;
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+  const recentMatches = (data?.matches || []).slice(0, 3); // Last 3 matches
+
+  // Fetch top leaderboard
+  const [topPlayers, setTopPlayers] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchTopLeaderboard = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/leaderboard?page=1&limit=3`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json();
+        setTopPlayers(data.leaderboard || []);
+      } catch (err) {
+        console.error("Failed to fetch top players:", err);
+      }
+    };
+    fetchTopLeaderboard();
+  }, []);
 
   const currentTopics = CATEGORIES[selectedCategory];
 
@@ -200,45 +221,98 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Global Leaderboard Teaser (Unchanged) */}
+        {/* Recent Match History & Top 3 Leaderboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 h-56 md:h-64 flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-white/20">
-              <FaHistory size={20} className="md:w-6 md:h-6" />
+          {/* Recent Matches */}
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
+                <FaHistory className="text-cyan-400" /> Recent Matches
+              </h3>
+              <button
+                onClick={() => navigate(`/profile/${data?.user?.name}`)}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-medium"
+              >
+                View All
+              </button>
             </div>
-            <h3 className="text-base md:text-lg font-medium text-white mb-1">
-              Match History
-            </h3>
-            <p className="text-white/40 text-xs md:text-sm max-w-xs">
-              Recent matches will appear here once you start playing.
-            </p>
+
+            <div className="space-y-3">
+              {recentMatches.length === 0 ? (
+                <div className="text-center py-8 text-white/30 text-sm">
+                  No matches played yet. Start competing!
+                </div>
+              ) : (
+                recentMatches.map((match: any) => (
+                  <div key={match.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${match.result === 'win' ? 'bg-green-500/10 text-green-400' :
+                          match.result === 'loss' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'
+                        }`}>
+                        {match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : 'D'}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{match.opponent.name}</div>
+                        <div className="text-xs text-white/40">{match.topic}</div>
+                      </div>
+                    </div>
+                    <div className={`font-mono font-bold text-sm ${match.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                      {match.ratingChange > 0 ? '+' : ''}{match.ratingChange}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 h-56 md:h-64 flex flex-col items-center justify-center text-center relative group">
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 pointer-events-none" />
-            <h3 className="text-base md:text-lg font-medium text-white mb-4 md:mb-6">
-              Global Leaderboard
-            </h3>
-
-            <div className="space-y-2 md:space-y-3 w-full max-w-xs relative z-10">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 p-2 rounded-lg bg-white/5 border border-white/5"
-                >
-                  <span className="font-mono text-sm md:text-base text-cyan-500">#{i}</span>
-                  <div className="w-16 md:w-20 h-1.5 md:h-2 bg-white/10 rounded-full" />
-                  <div className="ml-auto w-6 md:w-8 h-1.5 md:h-2 bg-white/10 rounded-full" />
-                </div>
-              ))}
+          {/* Top 3 Leaderboard */}
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
+                <FaCrown className="text-yellow-400" /> Top Players
+              </h3>
+              <button
+                onClick={() => navigate("/leaderboard")}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-medium"
+              >
+                View All
+              </button>
             </div>
 
-            <button
-              onClick={() => navigate("/leaderboard")}
-              className="mt-4 md:mt-6 text-xs md:text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-2"
-            >
-              View All Rankings <FaChartLine />
-            </button>
+            <div className="space-y-3">
+              {topPlayers.length === 0 ? (
+                <div className="text-center py-8 text-white/30 text-sm">
+                  Loading top players...
+                </div>
+              ) : (
+                topPlayers.map((player: any, index: number) => {
+                  const playerRank = getRankInfo(player.rating).rank;
+                  return (
+                    <div
+                      key={player.userId}
+                      onClick={() => navigate(`/profile/${player.username}`)}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5"
+                    >
+                      <span className={`font-mono text-sm font-bold ${index === 0 ? 'text-yellow-400' :
+                          index === 1 ? 'text-gray-300' :
+                            'text-orange-400'
+                        }`}>
+                        #{index + 1}
+                      </span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm">{player.username}</div>
+                        <div className={`text-xs ${playerRank.color}`}>{playerRank.name}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-sm">{player.rating}</div>
+                        <div className="text-xs text-white/40">{player.winRate}% WR</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </main>
