@@ -17,9 +17,20 @@ const Navbar = ({ data, rank, handleLogout }: NavbarProps) => {
             to="/dashboard"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <h1 className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              APEX
-            </h1>
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center text-black">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <path d="M12 2L2 22h20L12 2z" />
+              </svg>
+            </div>
+            <span className="text-2xl font-black tracking-tighter text-white">APEX</span>
           </Link>
         </div>
         <div className="flex items-center gap-4">
