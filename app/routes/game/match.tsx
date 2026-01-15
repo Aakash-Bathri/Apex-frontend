@@ -235,7 +235,7 @@ export default function GameRoom() {
     }
 
     if (results) {
-        return <GameResult results={results} currentUser={user} />;
+        return <GameResult results={results} currentUser={user} game={game} />;
     }
 
     if (!game || !game.questions || !game.questions[currentQuestionIndex]) {
@@ -323,7 +323,7 @@ export default function GameRoom() {
     );
 }
 
-function GameResult({ results, currentUser }: any) {
+function GameResult({ results, currentUser, game }: any) {
     const navigate = useNavigate();
     const isWinner = results.winner?.userId === currentUser?._id;
     const isDraw = results.isDraw;
@@ -385,6 +385,45 @@ function GameResult({ results, currentUser }: any) {
                         View Leaderboard
                     </button>
                 </div>
+
+                {/* Question Review Section */}
+                <div className="mt-12 text-left">
+                    <h3 className="text-xl font-bold mb-6 text-center text-white/60 uppercase tracking-widest">Answer Review</h3>
+                    <div className="space-y-4">
+                        {game?.questions?.map((qObj: any, idx: number) => {
+                            const question = qObj.questionId;
+                            // Find user's answer
+                            const myPlayer = game.players.find((p: any) => (p.userId._id || p.userId).toString() === currentUser._id);
+                            const myAnswerObj = myPlayer?.answers?.find((a: any) => a.questionId === question._id);
+
+                            const isCorrect = myAnswerObj?.isCorrect;
+                            const userAnswer = myAnswerObj?.answer || "No Answer";
+
+                            return (
+                                <div key={idx} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                                    <div className="text-sm text-white/60 font-bold mb-1">Question {idx + 1}</div>
+                                    <div className="font-medium mb-2">{question.description}</div>
+
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <span className="opacity-50">Your Answer:</span>
+                                        <span className={`font-bold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                            {userAnswer}
+                                        </span>
+                                        {isCorrect && <FaCheck className="text-green-400" />}
+                                        {!isCorrect && <FaTimes className="text-red-400" />}
+                                    </div>
+
+                                    {!isCorrect && (
+                                        <div className="mt-1 text-sm text-white/40">
+                                            {/* Ideally show correct answer here if available */}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
             </div>
         </div>
     );
