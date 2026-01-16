@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { FaCode, FaLock, FaChartLine, FaTrophy, FaTerminal } from "react-icons/fa";
+import { RANKS } from "~/utils/rankUtils";
 
 export function meta() {
   return [{ title: "Apex - Real-time Coding Battles" }];
@@ -197,15 +198,17 @@ function Step({ num, title, desc, align }: any) {
 
 
 function RankClimbSection() {
-  const RANKS = [
-    { name: "Newbie", min: 0, color: "text-gray-400", emoji: "🌱" },
-    { name: "Pupil", min: 1200, color: "text-green-400", emoji: "📚" },
-    { name: "Specialist", min: 1400, color: "text-cyan-400", emoji: "⭐" },
-    { name: "Expert", min: 1600, color: "text-blue-500", emoji: "🎯" },
-    { name: "Candidate Master", min: 1900, color: "text-purple-400", emoji: "💎" },
-    { name: "Master", min: 2100, color: "text-orange-400", emoji: "👑" },
-    { name: "Grandmaster", min: 2400, color: "text-red-500", emoji: "🏆" },
-  ];
+  // Emoji mapping for ranks to match the centralized RANKS system
+  const RANK_EMOJIS: Record<string, string> = {
+    "Newbie": "🌱",
+    "Pupil": "📚",
+    "Specialist": "⭐",
+    "Expert": "🎯",
+    "Candidate Master": "💎",
+    "Master": "👑",
+    "International Master": "👑",
+    "Grandmaster": "🏆"
+  };
 
   const [rating, setRating] = useState(800);
   const [complete, setComplete] = useState(false);
@@ -342,7 +345,7 @@ function RankClimbSection() {
                 {complete && (
                   <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-1000">
                     <div className="text-center animate-bounce">
-                      <div className="text-6xl mb-2">{currentRank.emoji}</div>
+                      <div className="text-6xl mb-2">{RANK_EMOJIS[currentRank.name] || "🏆"}</div>
                       <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">{currentRank.name.toUpperCase()}</h3>
                       <p className="text-white/80 font-mono mt-2">
                         {currentRank.name === "Grandmaster" ? "LEGENDARY STATUS" :
@@ -366,7 +369,7 @@ function RankClimbSection() {
                       />
                     ) : (
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl transition-colors duration-300 ${complete ? `${currentRank.color.replace('text-', 'bg-')}/20 ${currentRank.color}` : "bg-blue-500/20 text-blue-400"}`}>
-                        {complete ? currentRank.emoji : displayInitial}
+                        {complete ? (RANK_EMOJIS[currentRank.name] || "🏆") : displayInitial}
                       </div>
                     )}
                     <div>

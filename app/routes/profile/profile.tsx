@@ -406,7 +406,11 @@ export default function Profile() {
                   </div>
                 ) : (
                   matches.map((match: any) => (
-                    <div key={match.id} className="flex items-center justify-between bg-white/5 p-4 rounded-2xl hover:bg-white/10 transition-colors border border-transparent hover:border-white/5">
+                    <div
+                      key={match.id}
+                      onClick={() => navigate(`/game/${match.id}`)}
+                      className="flex items-center justify-between bg-white/5 p-4 rounded-2xl hover:bg-white/10 transition-colors border border-transparent hover:border-white/5 cursor-pointer"
+                    >
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${match.result === 'win' ? 'bg-green-500/10 text-green-400' :
                           match.result === 'loss' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'

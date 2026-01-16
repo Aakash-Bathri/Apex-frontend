@@ -292,7 +292,8 @@ export default function Dashboard() {
                 recentMatches.map((match: any) => (
                   <div
                     key={match.id}
-                    className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors"
+                    onClick={() => navigate(`/game/${match.id}`)}
+                    className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       <div

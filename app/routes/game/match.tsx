@@ -73,7 +73,28 @@ export default function GameRoom() {
                 }
 
                 if (gameData.status === "FINISHED") {
-                    // TODO: Logic for finished game view if reloaded
+                    // Show results for finished game
+                    const myPlayer = gameData.players.find((p: any) => {
+                        const id = p.userId._id || p.userId;
+                        return id && id.toString() === user._id;
+                    });
+
+                    // Determine winner
+                    const p1 = gameData.players[0];
+                    const p2 = gameData.players[1];
+                    const winnerId = p1.result === "win" ? (p1.userId._id || p1.userId) :
+                        (p2.result === "win" ? (p2.userId._id || p2.userId) : null);
+
+                    setResults({
+                        winner: { userId: winnerId },
+                        isDraw: !winnerId,
+                        ratingChanges: {
+                            [user._id]: {
+                                change: myPlayer?.ratingChange || 0,
+                                newRating: myPlayer?.newRating || 0
+                            }
+                        }
+                    });
                 }
 
                 setGame(gameData);
@@ -127,8 +148,8 @@ export default function GameRoom() {
             setTimeout(() => {
                 setRoundStatus('PLAYING');
                 setRoundData(null);
-                setTimeLeft(60);
                 setSelectedAnswer(null);
+                // Timer will reset in the timer effect based on new question
 
                 setCurrentQuestionIndex((prev) => {
                     const newIndex = prev + 1;
@@ -162,6 +183,7 @@ export default function GameRoom() {
                     const finalGame = await res.json();
 
                     const myPlayer = finalGame.players.find((p: any) => (p.userId._id || p.userId).toString() === user._id);
+                    setGame(finalGame); // Store full game data
                     setResults({
                         winner: { userId: data.winnerId },
                         isDraw: !data.winnerId,
@@ -205,6 +227,10 @@ export default function GameRoom() {
     useEffect(() => {
         // Only run timer if active question exists
         if (!loading && !results && game && game.questions && game.questions[currentQuestionIndex]) {
+            const currentQ = game.questions[currentQuestionIndex].questionId;
+            const limit = currentQ.timeLimit || 60;
+            setTimeLeft(limit); // Reset timer to question's limit
+
             timerRef.current = setInterval(() => {
                 setTimeLeft((prev) => {
                     if (prev <= 1) {
@@ -212,7 +238,7 @@ export default function GameRoom() {
                         if (!submitting) {
                             handleNextQuestion(true); // Auto-submit with empty answer
                         }
-                        return 60;
+                        return limit;
                     }
                     return prev - 1;
                 });
@@ -224,11 +250,13 @@ export default function GameRoom() {
     }, [loading, currentQuestionIndex, results, submitting]); // Depend on submitting to stop restart loop if stuck
 
     const handleAnswerSelect = (option: string) => {
-        if (submitting) return;
+        if (submitting || roundStatus !== 'PLAYING') return;
         setSelectedAnswer(option);
+        // Auto-submit immediately
+        handleNextQuestion(false, option);
     };
 
-    const handleNextQuestion = (isTimeout = false) => {
+    const handleNextQuestion = (isTimeout = false, answer?: string) => {
         if (!game || !socket) return;
 
         // Prevent double submit (unless timeout logic forces it)
@@ -238,8 +266,9 @@ export default function GameRoom() {
         // Do NOT increment index here. Wait for round_over.
 
         const currentQ = game.questions[currentQuestionIndex].questionId;
-        const timeTaken = 60 - timeLeft;
-        const answerToSend = isTimeout ? "" : (selectedAnswer || "");
+        const limit = currentQ.timeLimit || 60;
+        const timeTaken = limit - timeLeft;
+        const answerToSend = isTimeout ? "" : (answer || selectedAnswer || "");
 
         console.log("Submitting Answer:", {
             gameId,
@@ -411,23 +440,16 @@ export default function GameRoom() {
                 </div>
 
                 {/* Action Bar */}
-                <div className="flex justify-end">
-                    {roundStatus === 'WAITING' ? (
+                <div className="flex justify-center">
+                    {roundStatus === 'WAITING' && (
                         <div className="px-12 py-4 rounded-2xl bg-white/10 font-bold text-lg flex items-center gap-3 animate-pulse">
                             Waiting for opponent...
                         </div>
-                    ) : (
-                        <button
-                            onClick={() => handleNextQuestion(false)}
-                            disabled={submitting || !selectedAnswer || roundStatus !== 'PLAYING'}
-                            className={`px-12 py-4 rounded-2xl font-black text-lg transition-all flex items-center gap-3 ${selectedAnswer && !submitting && roundStatus === 'PLAYING'
-                                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:scale-105 active:scale-95 shadow-lg shadow-cyan-500/20'
-                                : 'bg-white/5 text-white/20 cursor-not-allowed'
-                                }`}
-                        >
-                            {submitting ? 'Submitting...' : 'Submit Answer'}
-                            <FaChevronRight size={16} />
-                        </button>
+                    )}
+                    {submitting && roundStatus === 'PLAYING' && (
+                        <div className="px-12 py-4 rounded-2xl bg-cyan-500/20 border border-cyan-500/50 font-bold text-lg flex items-center gap-3">
+                            Answer Locked ✓
+                        </div>
                     )}
                 </div>
             </main>
@@ -506,7 +528,12 @@ function GameResult({ results, currentUser, game }: any) {
                             const question = qObj.questionId;
                             // Find user's answer
                             const myPlayer = game.players.find((p: any) => (p.userId._id || p.userId).toString() === currentUser._id);
-                            const myAnswerObj = myPlayer?.answers?.find((a: any) => a.questionId === question._id);
+                            const myAnswerObj = myPlayer?.answers?.find((a: any) => {
+                                // Support both string and ObjectId comparison
+                                const answerQId = a.questionId?._id || a.questionId;
+                                const questionQId = question._id || question;
+                                return answerQId.toString() === questionQId.toString();
+                            });
 
                             const isCorrect = myAnswerObj?.isCorrect;
                             const userAnswer = myAnswerObj?.answer || "No Answer";
