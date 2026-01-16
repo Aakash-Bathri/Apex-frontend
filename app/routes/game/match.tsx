@@ -25,6 +25,8 @@ export default function GameRoom() {
     const [timeLeft, setTimeLeft] = useState(60);
     const [submitting, setSubmitting] = useState(false);
     const [results, setResults] = useState<any>(null);
+    const [roundStatus, setRoundStatus] = useState<'PLAYING' | 'WAITING' | 'REVIEW'>('PLAYING');
+    const [roundData, setRoundData] = useState<any>(null);
 
     // Keep active question index in ref to avoid closure staleness in socket listeners
     const currentIndexRef = useRef(0);
@@ -96,78 +98,100 @@ export default function GameRoom() {
     useEffect(() => {
         if (!socket || !user) return;
 
-        const handleAnswerResult = (data: any) => {
-            console.log("SOCKET: Answer Result Received", data);
-            const { isCorrect, points, newScore } = data;
-
-            // Move to next question safely
+        const handleRoundOver = (data: any) => {
+            console.log("SOCKET: Round Over", data);
             setSubmitting(false);
+            setRoundStatus('REVIEW');
+            setRoundData(data);
 
-            // Use ref to check if we are already ahead (idempotency check on client too)
-            // But simpler is to just increment functional state
-
-            setGame((prevGame: any) => {
-                if (!prevGame) return prevGame;
-                // Update local score just in case we wan to show it
-                const updatedPlayers = prevGame.players.map((p: any) => {
-                    if ((p.userId._id || p.userId).toString() === user._id) {
-                        return { ...p, score: newScore };
-                    }
-                    return p;
+            // Update scores based on payload
+            if (data.results) {
+                setGame((prevGame: any) => {
+                    if (!prevGame) return prevGame;
+                    const updatedPlayers = prevGame.players.map((p: any) => {
+                        const r = data.results.find((res: any) => (p.userId._id || p.userId).toString() === res.userId);
+                        if (r) {
+                            return { ...p, score: r.newScore };
+                        }
+                        return p;
+                    });
+                    return { ...prevGame, players: updatedPlayers };
                 });
-                return { ...prevGame, players: updatedPlayers };
-            });
+            }
 
-            // Increment question index
-            setCurrentQuestionIndex((prev) => {
-                const newIndex = prev + 1;
-                currentIndexRef.current = newIndex;
-                return newIndex;
-            });
+            // Auto-advance after 5 seconds
+            setTimeout(() => {
+                setRoundStatus('PLAYING');
+                setRoundData(null);
+                setTimeLeft(60);
+                setSelectedAnswer(null);
 
-            setSelectedAnswer(null);
-            setTimeLeft(60);
+                setCurrentQuestionIndex((prev) => {
+                    const newIndex = prev + 1;
+                    currentIndexRef.current = newIndex;
+                    return newIndex;
+                });
+            }, 5000);
+        };
+
+        const handleWaiting = () => {
+            console.log("SOCKET: Waiting for opponent");
+            setRoundStatus('WAITING');
+        };
+
+        const handleOpponentAnswered = () => {
+            // Optional: Show toast "Opponent answered!"
+            console.log("Opponent answered");
         };
 
         const handleGameOver = (data: any) => {
             console.log("SOCKET: Game Over", data);
-            setLoading(true);
 
-            // Re-fetch to get final consistent state
-            setTimeout(async () => {
-                const token = localStorage.getItem("token");
-                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/game/${gameId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const finalGame = await res.json();
+            setTimeout(() => {
+                setLoading(true);
+                // Re-fetch to get final consistent state
+                setTimeout(async () => {
+                    const token = localStorage.getItem("token");
+                    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/game/${gameId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const finalGame = await res.json();
 
-                const myPlayer = finalGame.players.find((p: any) => (p.userId._id || p.userId).toString() === user._id);
-                setResults({
-                    winner: { userId: data.winnerId },
-                    isDraw: !data.winnerId,
-                    ratingChanges: {
-                        [user._id]: {
-                            change: myPlayer?.ratingChange || 0,
-                            newRating: myPlayer?.newRating || 0
+                    const myPlayer = finalGame.players.find((p: any) => (p.userId._id || p.userId).toString() === user._id);
+                    setResults({
+                        winner: { userId: data.winnerId },
+                        isDraw: !data.winnerId,
+                        ratingChanges: {
+                            [user._id]: {
+                                change: myPlayer?.ratingChange || 0,
+                                newRating: myPlayer?.newRating || 0
+                            }
                         }
-                    }
-                });
-                setLoading(false);
-            }, 1000);
+                    });
+                    setLoading(false);
+                }, 1000);
+            }, 5000); // Wait for the last round review (5s) before showing Game Over
         };
 
         const handleError = (data: any) => {
             console.error("SOCKET ERROR:", data);
             alert("Game Error: " + data.message);
             setSubmitting(false);
+            setRoundStatus('PLAYING'); // Reset if error
         };
 
-        socket.on("answer_result", handleAnswerResult);
+        // socket.on("answer_result", handleAnswerResult); // Deprecated
+        socket.on("round_over", handleRoundOver);
+        socket.on("waiting_for_opponent", handleWaiting);
+        socket.on("opponent_answered", handleOpponentAnswered);
         socket.on("game_over", handleGameOver);
         socket.on("error", handleError);
 
         return () => {
-            socket.off("answer_result", handleAnswerResult);
+            // socket.off("answer_result", handleAnswerResult);
+            socket.off("round_over", handleRoundOver);
+            socket.off("waiting_for_opponent", handleWaiting);
+            socket.off("opponent_answered", handleOpponentAnswered);
             socket.off("game_over", handleGameOver);
             socket.off("error", handleError);
         };
@@ -207,6 +231,7 @@ export default function GameRoom() {
         if (submitting && !isTimeout) return;
 
         setSubmitting(true);
+        // Do NOT increment index here. Wait for round_over.
 
         const currentQ = game.questions[currentQuestionIndex].questionId;
         const timeTaken = 60 - timeLeft;
@@ -224,6 +249,8 @@ export default function GameRoom() {
             answer: answerToSend, // Client now sends text
             timeTaken
         });
+
+        // Optimistic UI updates could go here, but we wait for 'waiting' or 'round_over'
     };
 
     if (loading) {
@@ -250,16 +277,86 @@ export default function GameRoom() {
     const currentQuestion = game.questions[currentQuestionIndex].questionId;
     const rank = getRankInfo(data?.stats?.overall?.rating || 0).rank;
 
+    // --- RENDER HELPERS ---
+    const myPlayer = game.players.find((p: any) => (p.userId._id || p.userId).toString() === user._id);
+    const opponent = game.players.find((p: any) => (p.userId._id || p.userId).toString() !== user._id);
+
     return (
-        <div className="min-h-screen bg-[#0a0e27] text-white pb-12">
+        <div className="min-h-screen bg-[#0a0e27] text-white pb-12 relative overflow-x-hidden">
             <Navbar data={data} rank={rank} handleLogout={() => { }} />
+
+            {/* ROUND REVIEW OVERLAY */}
+            {roundStatus === 'REVIEW' && roundData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-[#0a0e27] border border-white/10 rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 pointer-events-none" />
+
+                        <h2 className="text-3xl font-black text-center mb-8 uppercase tracking-widest text-white/90">
+                            Round Results
+                        </h2>
+
+                        <div className="grid grid-cols-2 gap-8 mb-8">
+                            {/* Me */}
+                            <div className={`p-6 rounded-2xl border ${roundData.results.find((r: any) => r.userId === user._id)?.isCorrect ? 'bg-green-500/20 border-green-500/50' : 'bg-red-500/20 border-red-500/50'}`}>
+                                <div className="text-center">
+                                    <div className="text-sm font-bold uppercase tracking-wider mb-2 opacity-70">You</div>
+                                    <div className="text-2xl font-bold mb-1">
+                                        {roundData.results.find((r: any) => r.userId === user._id)?.answer || (roundData.results.find((r: any) => r.userId === user._id)?.timeTaken >= 60 ? "Timed Out" : "No Answer")}
+                                    </div>
+                                    <div className="text-sm font-bold text-cyan-400">
+                                        {roundData.results.find((r: any) => r.userId === user._id)?.points > 0 ? `+${roundData.results.find((r: any) => r.userId === user._id)?.points} pts` : "0 pts"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Opponent */}
+                            <div className={`p-6 rounded-2xl border ${roundData.results.find((r: any) => r.userId !== user._id)?.isCorrect ? 'bg-green-500/20 border-green-500/50' : 'bg-red-500/20 border-red-500/50'}`}>
+                                <div className="text-center">
+                                    <div className="text-sm font-bold uppercase tracking-wider mb-2 opacity-70">
+                                        {(opponent?.userId as any)?.name || "Opponent"}
+                                    </div>
+                                    <div className="text-2xl font-bold mb-1">
+                                        {roundData.results.find((r: any) => r.userId !== user._id)?.answer || (roundData.results.find((r: any) => r.userId !== user._id)?.timeTaken >= 60 ? "Timed Out" : "No Answer")}
+                                    </div>
+                                    <div className="text-sm font-bold text-cyan-400">
+                                        {roundData.results.find((r: any) => r.userId !== user._id)?.points > 0 ? `+${roundData.results.find((r: any) => r.userId !== user._id)?.points} pts` : "0 pts"}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+                            <div className="text-xs uppercase tracking-widest text-white/50 mb-1">Correct Answer</div>
+                            <div className="text-xl font-bold text-green-400">
+                                {roundData.correctAnswer}
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-center">
+                            <div className="text-sm animate-pulse text-white/50">
+                                Next round starting soon...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <main className="max-w-4xl mx-auto px-4 pt-12">
                 {/* Match Header */}
                 <div className="flex items-center justify-between mb-8">
+                    {/* My Score */}
                     <div className="flex items-center gap-4">
-                        <div className="text-sm font-bold text-white/40 uppercase tracking-widest">
-                            Question {currentQuestionIndex + 1} of {game.questions.length}
+                        <div className="text-right">
+                            <div className="text-xs font-bold text-white/50 uppercase">You</div>
+                            <div className="text-2xl font-black">{myPlayer?.score || 0}</div>
+                        </div>
+                    </div>
+
+                    {/* Progress & Time */}
+                    <div className="flex flex-col items-center gap-2">
+                        <div className={`flex items-center gap-2 font-mono text-2xl font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`}>
+                            <FaClock size={20} />
+                            {timeLeft}s
                         </div>
                         <div className="h-1.5 w-32 bg-white/5 rounded-full overflow-hidden">
                             <div
@@ -269,9 +366,14 @@ export default function GameRoom() {
                         </div>
                     </div>
 
-                    <div className={`flex items-center gap-2 font-mono text-2xl font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`}>
-                        <FaClock size={20} />
-                        {timeLeft}s
+                    {/* Opponent Score */}
+                    <div className="flex items-center gap-4">
+                        <div className="text-left">
+                            <div className="text-xs font-bold text-white/50 uppercase">
+                                {(opponent?.userId as any)?.name || opponent?.name || "Opponent"}
+                            </div>
+                            <div className="text-2xl font-black">{opponent?.score || 0}</div>
+                        </div>
                     </div>
                 </div>
 
@@ -288,7 +390,7 @@ export default function GameRoom() {
                             <button
                                 key={idx}
                                 onClick={() => handleAnswerSelect(option.text)}
-                                disabled={submitting}
+                                disabled={submitting || roundStatus !== 'PLAYING'}
                                 className={`group flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-200 text-left ${selectedAnswer === option.text
                                     ? 'border-cyan-400 bg-cyan-400/10 text-white'
                                     : 'border-white/5 bg-white/5 hover:border-white/20 hover:bg-white/10 text-white/70'
@@ -306,17 +408,23 @@ export default function GameRoom() {
 
                 {/* Action Bar */}
                 <div className="flex justify-end">
-                    <button
-                        onClick={() => handleNextQuestion(false)}
-                        disabled={submitting || !selectedAnswer}
-                        className={`px-12 py-4 rounded-2xl font-black text-lg transition-all flex items-center gap-3 ${selectedAnswer && !submitting
-                            ? 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:scale-105 active:scale-95 shadow-lg shadow-cyan-500/20'
-                            : 'bg-white/5 text-white/20 cursor-not-allowed'
-                            }`}
-                    >
-                        {submitting ? 'Submitting...' : currentQuestionIndex === game.questions.length - 1 ? 'Finish Match' : 'Next Question'}
-                        <FaChevronRight size={16} />
-                    </button>
+                    {roundStatus === 'WAITING' ? (
+                        <div className="px-12 py-4 rounded-2xl bg-white/10 font-bold text-lg flex items-center gap-3 animate-pulse">
+                            Waiting for opponent...
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => handleNextQuestion(false)}
+                            disabled={submitting || !selectedAnswer || roundStatus !== 'PLAYING'}
+                            className={`px-12 py-4 rounded-2xl font-black text-lg transition-all flex items-center gap-3 ${selectedAnswer && !submitting && roundStatus === 'PLAYING'
+                                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:scale-105 active:scale-95 shadow-lg shadow-cyan-500/20'
+                                : 'bg-white/5 text-white/20 cursor-not-allowed'
+                                }`}
+                        >
+                            {submitting ? 'Submitting...' : 'Submit Answer'}
+                            <FaChevronRight size={16} />
+                        </button>
+                    )}
                 </div>
             </main>
         </div>

@@ -1,4 +1,4 @@
-import { Outlet, redirect, useLoaderData } from "react-router";
+import { Outlet, redirect } from "react-router";
 
 export async function clientLoader() {
   const token = localStorage.getItem("token");

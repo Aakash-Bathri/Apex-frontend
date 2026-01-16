@@ -12,9 +12,15 @@ import {
 import Navbar from "~/components/navbar";
 import { RANKS, getRankInfo } from "~/utils/rankUtils";
 import { useSocket } from "~/context/SocketContext";
+import {
+  Overlay,
+  PublicOverlay,
+  PrivateOverlay,
+  JoinOverlay,
+} from "~/components/overlay";
 
 const CATEGORIES: Record<string, string[]> = {
-  "CS": ["DSA", "OOPS", "OS", "DBMS", "CN"],
+  CS: ["DSA", "OOPS", "OS", "DBMS", "CN"],
 };
 
 export default function Dashboard() {
@@ -23,7 +29,9 @@ export default function Dashboard() {
   const { socket, isConnected } = useSocket();
 
   // UI State
-  const [overlay, setOverlay] = useState<null | "public" | "private" | "join">(null);
+  const [overlay, setOverlay] = useState<null | "public" | "private" | "join">(
+    null
+  );
   const [selectedCategory, setSelectedCategory] = useState("CS");
   const [selectedTopic, setSelectedTopic] = useState("RANDOM");
 
@@ -34,7 +42,8 @@ export default function Dashboard() {
   const losses = data?.stats?.overall?.losses || 0;
   const totalGames = wins + losses;
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-  const recentMatches = (data?.matches || []).slice(0, 3);
+  const recentMatches = (data?.matches || []).slice(-3);
+  console.log(recentMatches);
 
   // Socket Event Listeners
   useEffect(() => {
@@ -64,7 +73,6 @@ export default function Dashboard() {
     };
   }, [socket, navigate]);
 
-
   // Fetch top leaderboard
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
   useEffect(() => {
@@ -83,6 +91,7 @@ export default function Dashboard() {
     };
     fetchTopLeaderboard();
   }, []);
+  // console.log("Top Players:", topPlayers);
 
   const currentTopics = CATEGORIES[selectedCategory];
 
@@ -100,7 +109,6 @@ export default function Dashboard() {
 
       <main className="max-w-6xl mx-auto px-4 py-6 md:py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-
           {/* Stats Card */}
           <div className="col-span-1 lg:col-span-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -115,7 +123,9 @@ export default function Dashboard() {
 
             <div className="flex flex-col md:flex-row gap-6 md:items-end mb-6">
               <div>
-                <div className={`text-4xl md:text-5xl font-black mb-1 ${rank.color}`}>
+                <div
+                  className={`text-4xl md:text-5xl font-black mb-1 ${rank.color}`}
+                >
                   {rating}
                 </div>
                 <div className="text-base md:text-lg text-white/80 font-medium tracking-wide">
@@ -150,7 +160,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div>
-                <div className="text-xl md:text-2xl font-bold text-green-400">{wins}</div>
+                <div className="text-xl md:text-2xl font-bold text-green-400">
+                  {wins}
+                </div>
                 <div className="text-[10px] md:text-xs text-white/40 uppercase tracking-wider">
                   Won
                 </div>
@@ -181,10 +193,11 @@ export default function Dashboard() {
                     setSelectedCategory(cat);
                     setSelectedTopic("RANDOM");
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedCategory === cat
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    selectedCategory === cat
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                      : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                  }`}
                 >
                   {cat}
                 </button>
@@ -196,10 +209,11 @@ export default function Dashboard() {
               <div className="flex flex-wrap gap-2 content-start">
                 <button
                   onClick={() => setSelectedTopic("RANDOM")}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${selectedTopic === "RANDOM"
-                    ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
-                    : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
-                    }`}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
+                    selectedTopic === "RANDOM"
+                      ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                      : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
+                  }`}
                 >
                   All
                 </button>
@@ -207,10 +221,11 @@ export default function Dashboard() {
                   <button
                     key={topic}
                     onClick={() => setSelectedTopic(topic)}
-                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${selectedTopic === topic
-                      ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
-                      : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
-                      }`}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
+                      selectedTopic === topic
+                        ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                        : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
+                    }`}
                   >
                     {topic}
                   </button>
@@ -222,11 +237,13 @@ export default function Dashboard() {
               <button
                 onClick={() => setOverlay("public")}
                 disabled={!isConnected}
-                className={`w-full py-4 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 group ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`w-full py-4 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 group ${!isConnected ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <span>{isConnected ? "Play Now" : "Connecting..."}</span>
                 <span className="bg-white/20 text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider">
-                  {selectedTopic === "RANDOM" ? `${selectedCategory}` : selectedTopic}
+                  {selectedTopic === "RANDOM"
+                    ? `${selectedCategory}`
+                    : selectedTopic}
                 </span>
               </button>
 
@@ -248,7 +265,6 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-
         </div>
 
         {/* History & Leaderboard */}
@@ -272,21 +288,44 @@ export default function Dashboard() {
                 </div>
               ) : (
                 recentMatches.map((match: any) => (
-                  <div key={match.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors">
+                  <div
+                    key={match.id}
+                    className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${match.result === 'win' ? 'bg-green-500/10 text-green-400' :
-                        match.result === 'loss' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'
-                        }`}>
-                        {match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : 'D'}
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                          match.result === "win"
+                            ? "bg-green-500/10 text-green-400"
+                            : match.result === "loss"
+                              ? "bg-red-500/10 text-red-400"
+                              : "bg-yellow-500/10 text-yellow-400"
+                        }`}
+                      >
+                        {match.result === "win"
+                          ? "W"
+                          : match.result === "loss"
+                            ? "L"
+                            : "D"}
                       </div>
                       <div>
-                        <div className="font-medium text-sm">{match.opponent?.name || match.opponentId}</div>
-                        <div className="text-xs text-white/40">{match.topic}</div>
+                        <div className="font-medium text-sm">
+                          {match.opponent?.name || match.opponentId}
+                        </div>
+                        <div className="text-xs text-white/40">
+                          {match.topic}
+                        </div>
                       </div>
                     </div>
-                    <div className={`font-mono font-bold text-sm ${match.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                      {match.ratingChange > 0 ? '+' : ''}{match.ratingChange}
+                    <div
+                      className={`font-mono font-bold text-sm ${
+                        match.ratingChange >= 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {match.ratingChange > 0 ? "+" : ""}
+                      {match.ratingChange}
                     </div>
                   </div>
                 ))
@@ -310,14 +349,28 @@ export default function Dashboard() {
               {topPlayers.map((player: any, index: number) => {
                 const playerRank = getRankInfo(player.rating).rank;
                 return (
-                  <div key={player.userId} onClick={() => navigate(`/profile/${player.username}`)} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5">
-                    <span className={`font-mono text-sm font-bold ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-orange-400'}`}>#{index + 1}</span>
+                  <div
+                    key={player.userId}
+                    onClick={() => navigate(`/profile/${player.username}`)}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5"
+                  >
+                    <span
+                      className={`font-mono text-sm font-bold ${index === 0 ? "text-yellow-400" : index === 1 ? "text-gray-300" : "text-orange-400"}`}
+                    >
+                      #{index + 1}
+                    </span>
                     <div className="flex-1">
-                      <div className="font-semibold text-sm">{player.username}</div>
-                      <div className={`text-xs ${playerRank.color}`}>{playerRank.name}</div>
+                      <div className="font-semibold text-sm">
+                        {player.username}
+                      </div>
+                      <div className={`text-xs ${playerRank.color}`}>
+                        {playerRank.name}
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono font-bold text-sm">{player.rating}</div>
+                      <div className="font-mono font-bold text-sm">
+                        {player.rating}
+                      </div>
                     </div>
                   </div>
                 );
@@ -344,151 +397,10 @@ export default function Dashboard() {
             />
           )}
           {overlay === "join" && (
-            <JoinOverlay
-              onClose={() => setOverlay(null)}
-              socket={socket}
-            />
+            <JoinOverlay onClose={() => setOverlay(null)} socket={socket} />
           )}
         </Overlay>
       )}
-    </div>
-  );
-}
-
-function Overlay({ children, onClose }: any) {
-  return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-50 px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[#12162e] border border-white/10 rounded-3xl p-1 w-full max-w-md shadow-2xl relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
-        <div className="p-6 md:p-8">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function PublicOverlay({ topic, onClose, socket }: any) {
-  useEffect(() => {
-    if (socket) {
-      socket.emit("join_queue", { topic, rating: 1000 }); // Pass rating from props ideally
-    }
-  }, [socket, topic]);
-
-  return (
-    <div className="text-center w-full max-w-sm mx-auto">
-      <div className="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-current"></div>
-      </div>
-      <h2 className="text-xl font-bold mb-2">Finding Match...</h2>
-      <p className="text-white/50 text-sm mb-6">
-        Looking for an opponent in <span className="text-white font-bold">{topic}</span>
-      </p>
-      <button onClick={onClose} className="w-full py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-        Cancel
-      </button>
-    </div>
-  );
-}
-
-function PrivateOverlay({ topic, onClose, socket }: any) {
-  const [createdCode, setCreatedCode] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!socket) return;
-    const handleCreated = ({ code }: { code: string }) => {
-      setCreatedCode(code);
-      setLoading(false);
-    };
-    socket.on("private_created", handleCreated);
-    return () => {
-      socket.off("private_created", handleCreated);
-    };
-  }, [socket]);
-
-  const create = () => {
-    setLoading(true);
-    socket?.emit("create_private", { topic });
-  };
-
-  if (createdCode) {
-    return (
-      <div className="text-center">
-        <div className="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6">
-          <FaLock size={28} />
-        </div>
-        <h2 className="text-xl font-bold mb-2">Game Created!</h2>
-        <p className="text-white/50 text-sm mb-6">
-          Topic: <span className="text-white font-bold">{topic}</span><br />
-          Share:
-        </p>
-        <div className="bg-black/30 p-4 rounded-xl border border-white/5 mb-8">
-          <div className="text-3xl font-mono font-bold tracking-[0.2em] text-cyan-400 select-all">
-            {createdCode}
-          </div>
-        </div>
-        <button onClick={onClose} className="w-full py-3.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white transition-colors">
-          Done (Waiting...)
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-center">
-      <div className="w-16 h-16 bg-cyan-500/10 text-cyan-400 rounded-full flex items-center justify-center mx-auto mb-6">
-        <FaLock size={28} />
-      </div>
-      <h2 className="text-xl font-bold mb-2">Create Private Room</h2>
-      <p className="text-white/50 text-sm mb-8">
-        Create a private <span className="text-white font-bold">{topic}</span> room.
-      </p>
-      <div className="flex gap-3">
-        <button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
-        <button onClick={create} disabled={loading} className="flex-1 py-3.5 rounded-xl font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/25 transition-all disabled:opacity-50">
-          {loading ? "Creating..." : "Create Room"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function JoinOverlay({ onClose, socket }: any) {
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const join = () => {
-    if (!code) return;
-    setLoading(true);
-    socket?.emit("join_private", { code });
-  };
-
-  return (
-    <div className="text-center">
-      <div className="w-16 h-16 bg-purple-500/10 text-purple-400 rounded-full flex items-center justify-center mx-auto mb-6">
-        <FaKeyboard size={28} />
-      </div>
-      <h2 className="text-xl font-bold mb-2">Join Game</h2>
-      <p className="text-white/50 text-sm mb-8">Enter code:</p>
-      <input
-        type="text"
-        placeholder="ENTER CODE"
-        value={code}
-        onChange={(e) => setCode(e.target.value.toUpperCase())}
-        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-center text-xl font-mono font-bold tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-colors mb-8"
-        maxLength={6}
-      />
-      <div className="flex gap-3">
-        <button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
-        <button onClick={join} disabled={loading || code.length < 6} className="flex-1 py-3.5 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50">
-          {loading ? "Joining..." : "Join Game"}
-        </button>
-      </div>
     </div>
   );
 }
