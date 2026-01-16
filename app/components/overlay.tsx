@@ -19,10 +19,10 @@ export function Overlay({ children, onClose }: any) {
   );
 }
 
-export function PublicOverlay({ topic, onClose, socket }: any) {
+export function PublicOverlay({ topic, category, onClose, socket }: any) {
   useEffect(() => {
     if (socket) {
-      socket.emit("join_queue", { topic, rating: 1000 }); // Pass rating from props ideally
+      socket.emit("join_queue", { topic, category, rating: 1000 }); // Pass rating from props ideally
     }
   }, [socket, topic]);
 
@@ -46,7 +46,7 @@ export function PublicOverlay({ topic, onClose, socket }: any) {
   );
 }
 
-export function PrivateOverlay({ topic, onClose, socket }: any) {
+export function PrivateOverlay({ topic, category, onClose, socket }: any) {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -64,7 +64,7 @@ export function PrivateOverlay({ topic, onClose, socket }: any) {
 
   const create = () => {
     setLoading(true);
-    socket?.emit("create_private", { topic });
+    socket?.emit("create_private", { topic, category });
   };
 
   if (createdCode) {

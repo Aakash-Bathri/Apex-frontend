@@ -2,6 +2,10 @@ import { useNavigate, Link } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { FaCode, FaLock, FaChartLine, FaTrophy, FaTerminal } from "react-icons/fa";
 
+export function meta() {
+  return [{ title: "Apex - Real-time Coding Battles" }];
+}
+
 export default function Home() {
   const navigate = useNavigate();
 
@@ -60,8 +64,9 @@ export default function Home() {
           </span>
         </h1>
         <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Real-time coding duels. Real ratings. Not practice. Not casual.
-          Win to climb Codeforces-style ranks.
+          Real ratings. Real stakes.
+          No practice mode. No casual wins.
+          Only victory moves you up the ranks.
         </p>
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-4">
@@ -160,15 +165,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-white/30 text-sm">
-        <div>&copy; {new Date().getFullYear()} Apex. All rights reserved.</div>
-        <div className="flex gap-6">
-          <a href="#" className="hover:text-white transition-colors">Twitter</a>
-          <a href="#" className="hover:text-white transition-colors">GitHub</a>
-          <a href="#" className="hover:text-white transition-colors">Discord</a>
-        </div>
-      </footer>
     </div>
   );
 }

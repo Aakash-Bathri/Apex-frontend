@@ -13,7 +13,10 @@ import {
 import { useParams, useNavigate, Link } from "react-router";
 import { useState, useEffect } from "react";
 import {
-  LineChart,
+  AreaChart,
+  Area,
+  CartesianGrid,
+  LineChart, // Keep for fallback or other graphs
   Line,
   XAxis,
   YAxis,
@@ -29,6 +32,10 @@ import Navbar from "~/components/navbar";
 
 import { RANKS, getRankInfo } from "~/utils/rankUtils";
 
+export function meta({ params }: any) {
+  return [{ title: params.username ? `${params.username} - Apex` : "Profile - Apex" }];
+}
+
 export default function Profile() {
   const { username } = useParams();
   const navigate = useNavigate();
@@ -37,6 +44,7 @@ export default function Profile() {
   const [currentUserData, setCurrentUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [timeRange, setTimeRange] = useState<"ALL" | "24H" | "1H">("ALL");
 
   // Fetch profile data by username
   useEffect(() => {
@@ -130,17 +138,46 @@ export default function Profile() {
   // Check if current user is viewing their own profile
   const isOwner = currentUserData?.user?.name?.toLowerCase() === user?.name?.toLowerCase();
 
-  // Ensure graph has at least one point (current rating) if history is empty
+  // Filter History based on Time Range
+  const filteredHistory = ratingHistory.filter((h: any) => {
+    if (timeRange === "ALL") return true;
+    const date = new Date(h.date);
+    const now = new Date();
+    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    if (timeRange === "24H") return diffHours <= 24;
+    if (timeRange === "1H") return diffHours <= 1;
+    return true;
+  });
+
+  // Prepare Graph Data
   const graphData =
-    ratingHistory.length > 0
-      ? ratingHistory.map((h: any) => ({
+    filteredHistory.length > 0
+      ? filteredHistory.map((h: any) => ({
         ...h,
-        date: new Date(h.date).toLocaleDateString(undefined, {
+        displayDate: new Date(h.date).toLocaleDateString(undefined, {
           month: "short",
           day: "numeric",
         }),
+        displayTime: new Date(h.date).toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        fullDate: new Date(h.date).toLocaleString(),
       }))
-      : [{ date: "Now", rating: rating }];
+      : []; // Handle empty later
+
+  // Determine X-Axis Format based on range
+  const formatXAxis = (tickItem: any, index: number) => {
+    // If range is narrow (1H or 24H), show time. If ALL, show date.
+    if (timeRange === "1H" || timeRange === "24H") {
+      // Need to look up original data? We can just pass the formatted string if unique
+      // But better: filtering modifies the array.
+      const item = graphData[index];
+      return item ? item.displayTime : "";
+    }
+    const item = graphData[index];
+    return item ? item.displayDate : "";
+  };
 
 
 
@@ -242,41 +279,86 @@ export default function Profile() {
         {/* 3. Rating Graph & Performance Breakdown */}
         {/* 3. Rating Graph (Full Width) */}
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 relative">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <FaChartLine className="text-cyan-400" /> Rating History
-          </h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <FaChartLine className="text-cyan-400" /> Rating History
+            </h3>
+            {/* Time Range Toggles */}
+            <div className="flex bg-black/20 p-1 rounded-lg">
+              {(["ALL", "24H", "1H"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setTimeRange(r)}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${timeRange === r
+                    ? "bg-cyan-500/20 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]"
+                    : "text-white/40 hover:text-white"
+                    }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={graphData}>
-                <XAxis
-                  dataKey="date"
-                  stroke="#aaaaaa"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  domain={['auto', 'auto']}
-                  stroke="#aaaaaa"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#1e2235', borderColor: '#333', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rating"
-                  stroke="#06b6d4"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: '#0a0e27', strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {graphData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={graphData}>
+                  <defs>
+                    <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(_, i) => formatXAxis(null, i)}
+                    stroke="#aaaaaa"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    domain={["auto", "auto"]}
+                    stroke="#aaaaaa"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    width={30}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#1e2235",
+                      borderColor: "#333",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
+                    }}
+                    itemStyle={{ color: "#fff" }}
+                    labelStyle={{ color: "#ffffff80", fontSize: "12px", marginBottom: "5px" }}
+                    labelFormatter={(label, payload) => {
+                      if (payload && payload.length > 0) {
+                        return payload[0].payload.fullDate;
+                      }
+                      return label;
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="rating"
+                    stroke="#06b6d4"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorRating)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-white/20 text-sm">
+                No match data for this period
+              </div>
+            )}
           </div>
         </div>
 
@@ -353,7 +435,7 @@ export default function Profile() {
         </div>
 
         {/* Privacy Settings - Owner Only */}
-        {isOwner && (
+        {/* {isOwner && (
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 opacity-70 hover:opacity-100 transition-opacity">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/40">
@@ -364,13 +446,12 @@ export default function Profile() {
                 <p className="text-sm text-white/50">Control who can see your stats</p>
               </div>
             </div>
-            {/* Simple Toggle Mock */}
             <div className="flex bg-black/20 p-1 rounded-xl">
               <button className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium shadow-sm">Public</button>
               <button className="px-4 py-2 rounded-lg text-white/40 text-sm font-medium hover:text-white transition-colors">Friends Only</button>
             </div>
           </div>
-        )}
+        )} */}
 
       </main >
     </div >

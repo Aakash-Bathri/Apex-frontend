@@ -4,6 +4,10 @@ import { FaTrophy, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/f
 import { getRankInfo } from "~/utils/rankUtils";
 import Navbar from "~/components/navbar";
 
+export function meta() {
+    return [{ title: "Leaderboard - Apex" }];
+}
+
 export default function Leaderboard() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();

@@ -21,7 +21,12 @@ import {
 
 const CATEGORIES: Record<string, string[]> = {
   CS: ["DSA", "OOPS", "OS", "DBMS", "CN"],
+  Electronics: ["Digital", "Analog", "Signals", "COA", "C_Prog"],
 };
+
+export function meta() {
+  return [{ title: "Dashboard - Apex" }];
+}
 
 export default function Dashboard() {
   const data: any = useRouteLoaderData("protected-layout");
@@ -193,11 +198,10 @@ export default function Dashboard() {
                     setSelectedCategory(cat);
                     setSelectedTopic("RANDOM");
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    selectedCategory === cat
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                      : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedCategory === cat
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                    }`}
                 >
                   {cat}
                 </button>
@@ -209,11 +213,10 @@ export default function Dashboard() {
               <div className="flex flex-wrap gap-2 content-start">
                 <button
                   onClick={() => setSelectedTopic("RANDOM")}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
-                    selectedTopic === "RANDOM"
-                      ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
-                      : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
-                  }`}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${selectedTopic === "RANDOM"
+                    ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                    : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
+                    }`}
                 >
                   All
                 </button>
@@ -221,11 +224,10 @@ export default function Dashboard() {
                   <button
                     key={topic}
                     onClick={() => setSelectedTopic(topic)}
-                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
-                      selectedTopic === topic
-                        ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
-                        : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
-                    }`}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${selectedTopic === topic
+                      ? "bg-blue-500/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                      : "bg-white/5 border-transparent text-white/40 hover:bg-white/10"
+                      }`}
                   >
                     {topic}
                   </button>
@@ -294,13 +296,12 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                          match.result === "win"
-                            ? "bg-green-500/10 text-green-400"
-                            : match.result === "loss"
-                              ? "bg-red-500/10 text-red-400"
-                              : "bg-yellow-500/10 text-yellow-400"
-                        }`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${match.result === "win"
+                          ? "bg-green-500/10 text-green-400"
+                          : match.result === "loss"
+                            ? "bg-red-500/10 text-red-400"
+                            : "bg-yellow-500/10 text-yellow-400"
+                          }`}
                       >
                         {match.result === "win"
                           ? "W"
@@ -318,11 +319,10 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div
-                      className={`font-mono font-bold text-sm ${
-                        match.ratingChange >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
+                      className={`font-mono font-bold text-sm ${match.ratingChange >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                        }`}
                     >
                       {match.ratingChange > 0 ? "+" : ""}
                       {match.ratingChange}
@@ -385,6 +385,7 @@ export default function Dashboard() {
           {overlay === "public" && (
             <PublicOverlay
               topic={selectedTopic}
+              category={selectedCategory}
               onClose={() => setOverlay(null)}
               socket={socket}
             />
@@ -392,6 +393,7 @@ export default function Dashboard() {
           {overlay === "private" && (
             <PrivateOverlay
               topic={selectedTopic}
+              category={selectedCategory}
               onClose={() => setOverlay(null)}
               socket={socket}
             />

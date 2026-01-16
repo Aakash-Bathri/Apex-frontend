@@ -17,5 +17,10 @@ export default [
     route("dashboard", "routes/dashboard/dashboard.tsx"),
     route("leaderboard", "routes/leaderboard/leaderboard.tsx"),
     route("game/:gameId", "routes/game/match.tsx"),
+    // route("game/:gameId", "routes/game/match.tsx"),
   ]),
+
+  // Admin Routes
+  route("admin/login", "routes/admin/login.tsx"),
+  route("admin/dashboard", "routes/admin/dashboard.tsx"),
 ] satisfies RouteConfig;

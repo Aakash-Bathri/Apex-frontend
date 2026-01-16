@@ -11,6 +11,10 @@ export async function clientLoader() {
     return null;
 }
 
+export function meta() {
+    return [{ title: "Match - Apex" }];
+}
+
 export default function GameRoom() {
     const { gameId } = useParams();
     const navigate = useNavigate();
