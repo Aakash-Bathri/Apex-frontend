@@ -10,8 +10,8 @@ function OAuthSuccess() {
 
     if (token) {
       // DEBUG: Alert to confirm token reception
-      alert("OAuth Success! Token received: " + token.substring(0, 10) + "...");
-      console.log("OAuth Token:", token);
+      // alert("OAuth Success! Token received: " + token.substring(0, 10) + "...");
+      // console.log("OAuth Token:", token);
 
       localStorage.setItem("token", token);
 
