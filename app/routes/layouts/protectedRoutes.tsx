@@ -27,6 +27,12 @@ export async function clientLoader() {
     console.log(data);
     return data; // This data will be available to all child routes via useRouteLoaderData
   } catch (error) {
+    console.error("Dashboard fetch error:", error);
+    // Temporary debugging: Alert the user to see what went wrong
+    if (typeof window !== "undefined") {
+      alert(`Login failed: ${error.message || "Unknown error"}. Check console for details.`);
+    }
+
     localStorage.removeItem("token");
     return redirect("/login");
   }

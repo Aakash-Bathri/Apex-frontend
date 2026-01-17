@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 function OAuthSuccess() {
@@ -9,17 +9,18 @@ function OAuthSuccess() {
     const token = searchParams.get("token");
 
     if (token) {
-      localStorage.setItem("token", token);
-      // console.log("Token stored:", token);
+      // DEBUG: Alert to confirm token reception
+      alert("OAuth Success! Token received: " + token.substring(0, 10) + "...");
+      console.log("OAuth Token:", token);
 
-      // Use replace instead of navigate to avoid back button issues
-      // Add a small delay to ensure localStorage is written
+      localStorage.setItem("token", token);
+
       setTimeout(() => {
         navigate("/dashboard", { replace: true });
       }, 100);
     } else {
       console.error("No token found in URL");
-      // Redirect to login if no token
+      alert("OAuth Error: No token found in URL parameters!");
       navigate("/login", { replace: true });
     }
   }, [navigate, searchParams]);
