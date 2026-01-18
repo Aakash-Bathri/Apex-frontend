@@ -276,31 +276,33 @@ export default function GameRoom() {
     // Timer Logic
     // Timer Initialization
     useEffect(() => {
+        // Only initialize timer when in PLAYING state
+        if (roundStatus !== 'PLAYING') return;
+
         if (game && game.questions && game.questions[currentQuestionIndex]) {
             const currentQ = game.questions[currentQuestionIndex].questionId;
             // CHECK PERSISTED LIMIT FIRST
             const limit = game.questions[currentQuestionIndex].timeLimit || currentQ.timeLimit || 30;
 
-            // Sync with Server Time
-            // If game has currentRoundStartTime, calculate remaining time
-            let syncedTime = limit;
-
-            // Check if we received a round start time (from game_started or updated game object)
-            // Note: date format from JSON might need parsing
+            // For new questions, check if currentRoundStartTime is recent
+            // If not, this is a fresh question and should get full time
             const roundStart = game.currentRoundStartTime ? new Date(game.currentRoundStartTime).getTime() : Date.now();
             const now = Date.now();
             const elapsed = Math.floor((now - roundStart) / 1000);
 
-            // If elapsed is reasonable (positive and less than limit), use it
-            if (elapsed >= 0 && elapsed < limit) {
-                syncedTime = limit - elapsed;
-            } else if (elapsed >= limit) {
-                syncedTime = 0; // Time already up
+            let syncedTime = limit;
+
+            // Only sync with server time if the timestamp is recent (< limit + buffer)
+            // Otherwise, this is a new round and we should use full time
+            if (elapsed >= 0 && elapsed < (limit + 2)) {
+                syncedTime = Math.max(1, limit - elapsed);
             }
+            // If elapsed is way too high, assume new round - use full time
+            // (Server will update currentRoundStartTime after round_over)
 
             setTimeLeft(syncedTime);
         }
-    }, [currentQuestionIndex, game]);
+    }, [currentQuestionIndex, game, roundStatus]);
 
     // Timer Countdown
     useEffect(() => {
