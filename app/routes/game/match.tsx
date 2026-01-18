@@ -165,9 +165,17 @@ export default function GameRoom() {
                 // Timer will reset in the timer effect based on new question
 
                 setCurrentQuestionIndex((prev) => {
-                    const newIndex = prev + 1;
-                    currentIndexRef.current = newIndex;
-                    return newIndex;
+                    // Check if we're already on the next question (from game_sync after refresh)
+                    // If so, don't increment again to avoid skipping questions
+                    const expectedNextIndex = currentIndexRef.current + 1;
+                    if (currentIndexRef.current >= expectedNextIndex - 1) {
+                        const newIndex = prev + 1;
+                        currentIndexRef.current = newIndex;
+                        return newIndex;
+                    }
+                    // Already advanced, just ensure ref is synced
+                    currentIndexRef.current = prev;
+                    return prev;
                 });
             }, 5000);
         };
@@ -221,7 +229,7 @@ export default function GameRoom() {
 
         const handleGameAborted = (data: any) => {
             console.log("SOCKET: Game Aborted", data);
-            alert(data.message || "Game has been aborted");
+            // alert(data.message || "Game has been aborted");
             navigate("/dashboard");
         };
 
@@ -249,6 +257,21 @@ export default function GameRoom() {
             socket.off("game_aborted", handleGameAborted);
         };
     }, [socket, gameId, user]);
+
+    // Warn before refresh/close during active game
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            // Only warn if game is in progress and not on results screen
+            if (game && game.status === 'IN_PROGRESS' && !results) {
+                e.preventDefault();
+                e.returnValue = 'Game in progress! Refreshing may cause sync issues. Are you sure?';
+                return 'Game in progress! Refreshing may cause sync issues. Are you sure?';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [game, results]);
 
     // Timer Logic
     // Timer Initialization
@@ -281,14 +304,17 @@ export default function GameRoom() {
 
     // Timer Countdown
     useEffect(() => {
-        // Only run timer if PLAYING and not submitting
+        // Only run timer if PLAYING (not WAITING, not REVIEW) and not submitting
         if (roundStatus !== 'PLAYING' || submitting || loading || results) return;
 
         timerRef.current = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     clearInterval(timerRef.current);
-                    handleNextQuestion(true); // Auto-submit timeout
+                    // Only auto-submit if not already submitting
+                    if (!submitting) {
+                        handleNextQuestion(true); // Auto-submit timeout
+                    }
                     return 0;
                 }
                 return prev - 1;
@@ -309,6 +335,12 @@ export default function GameRoom() {
 
     const handleNextQuestion = (isTimeout = false, answer?: string) => {
         if (!game || !socket) return;
+
+        // Guard: Don't submit if no current question (game finished/out of bounds)
+        if (!game.questions[currentQuestionIndex]) {
+            console.warn("No current question - game may be finished");
+            return;
+        }
 
         // Prevent double submit (unless timeout logic forces it)
         if (submitting && !isTimeout) return;
@@ -351,6 +383,10 @@ export default function GameRoom() {
 
     if (!game || !game.questions || !game.questions[currentQuestionIndex]) {
         // Wait for result or just show loading
+        // This can happen if game is finished and currentQuestionIndex >= questions.length
+        if (results) {
+            return <GameResult results={results} currentUser={user} game={game} />;
+        }
         return (
             <div className="min-h-screen bg-[#0a0e27] text-white flex items-center justify-center">
                 <div className="text-xl">Waiting for results...</div>
