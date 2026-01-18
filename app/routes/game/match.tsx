@@ -123,6 +123,19 @@ export default function GameRoom() {
     useEffect(() => {
         if (!socket || !user) return;
 
+        const handleGameSync = (data: any) => {
+            console.log("SOCKET: Game Synced", data);
+            setGame(data);
+            if (data.currentQuestionIndex !== undefined) {
+                setCurrentQuestionIndex(data.currentQuestionIndex);
+                currentIndexRef.current = data.currentQuestionIndex;
+            }
+            if (data.status === 'IN_PROGRESS') {
+                setRoundStatus('PLAYING');
+                setLoading(false);
+            }
+        };
+
         const handleRoundOver = (data: any) => {
             console.log("SOCKET: Round Over", data);
             setSubmitting(false);
@@ -206,48 +219,86 @@ export default function GameRoom() {
             setRoundStatus('PLAYING'); // Reset if error
         };
 
+        const handleGameAborted = (data: any) => {
+            console.log("SOCKET: Game Aborted", data);
+            alert(data.message || "Game has been aborted");
+            navigate("/dashboard");
+        };
+
         // socket.on("answer_result", handleAnswerResult); // Deprecated
+        socket.on("game_sync", handleGameSync);
         socket.on("round_over", handleRoundOver);
         socket.on("waiting_for_opponent", handleWaiting);
         socket.on("opponent_answered", handleOpponentAnswered);
         socket.on("game_over", handleGameOver);
         socket.on("error", handleError);
+        socket.on("game_aborted", handleGameAborted);
+
+        // Request Sync
+        console.log("Emitting join_game for sync...");
+        socket.emit("join_game", { gameId });
 
         return () => {
             // socket.off("answer_result", handleAnswerResult);
+            socket.off("game_sync", handleGameSync);
             socket.off("round_over", handleRoundOver);
             socket.off("waiting_for_opponent", handleWaiting);
             socket.off("opponent_answered", handleOpponentAnswered);
             socket.off("game_over", handleGameOver);
             socket.off("error", handleError);
+            socket.off("game_aborted", handleGameAborted);
         };
     }, [socket, gameId, user]);
 
     // Timer Logic
+    // Timer Initialization
     useEffect(() => {
-        // Only run timer if active question exists
-        if (!loading && !results && game && game.questions && game.questions[currentQuestionIndex]) {
+        if (game && game.questions && game.questions[currentQuestionIndex]) {
             const currentQ = game.questions[currentQuestionIndex].questionId;
-            const limit = currentQ.timeLimit || 60;
-            setTimeLeft(limit); // Reset timer to question's limit
+            // CHECK PERSISTED LIMIT FIRST
+            const limit = game.questions[currentQuestionIndex].timeLimit || currentQ.timeLimit || 30;
 
-            timerRef.current = setInterval(() => {
-                setTimeLeft((prev) => {
-                    if (prev <= 1) {
-                        // Time's up!
-                        if (!submitting) {
-                            handleNextQuestion(true); // Auto-submit with empty answer
-                        }
-                        return limit;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
+            // Sync with Server Time
+            // If game has currentRoundStartTime, calculate remaining time
+            let syncedTime = limit;
+
+            // Check if we received a round start time (from game_started or updated game object)
+            // Note: date format from JSON might need parsing
+            const roundStart = game.currentRoundStartTime ? new Date(game.currentRoundStartTime).getTime() : Date.now();
+            const now = Date.now();
+            const elapsed = Math.floor((now - roundStart) / 1000);
+
+            // If elapsed is reasonable (positive and less than limit), use it
+            if (elapsed >= 0 && elapsed < limit) {
+                syncedTime = limit - elapsed;
+            } else if (elapsed >= limit) {
+                syncedTime = 0; // Time already up
+            }
+
+            setTimeLeft(syncedTime);
         }
+    }, [currentQuestionIndex, game]);
+
+    // Timer Countdown
+    useEffect(() => {
+        // Only run timer if PLAYING and not submitting
+        if (roundStatus !== 'PLAYING' || submitting || loading || results) return;
+
+        timerRef.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timerRef.current);
+                    handleNextQuestion(true); // Auto-submit timeout
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [loading, currentQuestionIndex, results, submitting]); // Depend on submitting to stop restart loop if stuck
+    }, [roundStatus, submitting, loading, results]);
 
     const handleAnswerSelect = (option: string) => {
         if (submitting || roundStatus !== 'PLAYING') return;
