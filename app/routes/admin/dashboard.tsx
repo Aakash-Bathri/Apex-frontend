@@ -42,6 +42,11 @@ export default function AdminDashboard() {
             const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/questions?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            if (res.status === 401) {
+                localStorage.removeItem("adminToken");
+                navigate("/admin/login");
+                return;
+            }
             if (res.ok) setQuestions(await res.json());
         } catch (err) { console.error(err); }
         setLoading(false);

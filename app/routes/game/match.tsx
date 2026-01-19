@@ -242,10 +242,6 @@ export default function GameRoom() {
         socket.on("error", handleError);
         socket.on("game_aborted", handleGameAborted);
 
-        // Request Sync
-        console.log("Emitting join_game for sync...");
-        socket.emit("join_game", { gameId });
-
         return () => {
             // socket.off("answer_result", handleAnswerResult);
             socket.off("game_sync", handleGameSync);
@@ -257,6 +253,20 @@ export default function GameRoom() {
             socket.off("game_aborted", handleGameAborted);
         };
     }, [socket, gameId, user]);
+
+    // Conditional Join Effect
+    const joinedGameRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!socket || !game || !gameId) return;
+
+        // Only join if persistent connection is needed (IN_PROGRESS)
+        // AND we haven't already joined this confirmed session
+        if (game.status === 'IN_PROGRESS' && joinedGameRef.current !== gameId) {
+            console.log("Emitting join_game for active game...");
+            socket.emit("join_game", { gameId });
+            joinedGameRef.current = gameId;
+        }
+    }, [socket, game, gameId]);
 
     // Warn before refresh/close during active game
     useEffect(() => {
