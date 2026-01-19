@@ -8,6 +8,8 @@ import {
   FaChartLine,
   FaHistory,
   FaCrown,
+  FaUserFriends,
+  FaSignal
 } from "react-icons/fa";
 import Navbar from "~/components/navbar";
 import { RANKS, getRankInfo } from "~/utils/rankUtils";
@@ -48,6 +50,8 @@ export default function Dashboard() {
   const totalGames = wins + losses;
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
   const recentMatches = (data?.matches || []).slice(-3);
+  const onlineUsers = data?.onlineUsers || 0;
+  const activePlayers = data?.activePlayers || 0;
   console.log(recentMatches);
 
   // Socket Event Listeners
@@ -113,6 +117,30 @@ export default function Dashboard() {
       <Navbar data={data} rank={rank} handleLogout={handleLogout} />
 
       <main className="max-w-6xl mx-auto px-4 py-6 md:py-8 relative z-10">
+
+        {/* Live Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex items-center justify-between group hover:bg-white/10 transition-colors">
+            <div>
+              <div className="text-2xl font-black text-green-400">{onlineUsers}</div>
+              <div className="text-xs text-white/50 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Online
+              </div>
+            </div>
+            <FaUserFriends className="text-3xl text-white/10 group-hover:text-green-500/20 transition-colors" />
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex items-center justify-between group hover:bg-white/10 transition-colors">
+            <div>
+              <div className="text-2xl font-black text-blue-400">{activePlayers}</div>
+              <div className="text-xs text-white/50 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <FaGamepad className="text-[10px]" /> In Game
+              </div>
+            </div>
+            <FaSignal className="text-3xl text-white/10 group-hover:text-blue-500/20 transition-colors" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
           {/* Stats Card */}
           <div className="col-span-1 lg:col-span-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 relative overflow-hidden group">
