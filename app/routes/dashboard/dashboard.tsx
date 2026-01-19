@@ -53,6 +53,7 @@ export default function Dashboard() {
   const onlineUsers = data?.onlineUsers || 0;
   const activePlayers = data?.activePlayers || 0;
   console.log(recentMatches);
+  const topPlayers = data?.leaderboard || [];
 
   // Socket Event Listeners
   useEffect(() => {
@@ -81,26 +82,6 @@ export default function Dashboard() {
       socket.off("error", handleError);
     };
   }, [socket, navigate]);
-
-  // Fetch top leaderboard
-  const [topPlayers, setTopPlayers] = useState<any[]>([]);
-  useEffect(() => {
-    const fetchTopLeaderboard = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/leaderboard?page=1&limit=3`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setTopPlayers(data.leaderboard || []);
-      } catch (err) {
-        console.error("Failed to fetch top players:", err);
-      }
-    };
-    fetchTopLeaderboard();
-  }, []);
-  // console.log("Top Players:", topPlayers);
 
   const currentTopics = CATEGORIES[selectedCategory];
 
