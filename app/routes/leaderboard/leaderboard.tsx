@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams, useRouteLoaderData } from "react-router";
-import { FaTrophy, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaTrophy, FaSearch } from "react-icons/fa";
 import { getRankInfo } from "~/utils/rankUtils";
 import Navbar from "~/components/navbar";
 
@@ -14,12 +14,7 @@ export default function Leaderboard() {
 
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [userPosition, setUserPosition] = useState<any>(null);
-    const [pagination, setPagination] = useState({
-        currentPage: 1,
-        totalPages: 1,
-        totalItems: 0,
-        itemsPerPage: 50,
-    });
+
     const [filters, setFilters] = useState({
         timeframe: searchParams.get("timeframe") || "all-time",
         filter: "global",
@@ -31,12 +26,11 @@ export default function Leaderboard() {
     const userData = useRouteLoaderData("protected-layout");
 
     // Fetch leaderboard data
-    const fetchLeaderboard = async (page = 1) => {
+    const fetchLeaderboard = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem("token");
             const queryParams = new URLSearchParams({
-                page: page.toString(),
                 limit: "50",
                 timeframe: filters.timeframe,
                 filter: filters.filter,
@@ -50,7 +44,6 @@ export default function Leaderboard() {
             const data = await res.json();
 
             setLeaderboard(data.leaderboard || []);
-            setPagination(data.pagination || pagination);
             setUserPosition(data.userPosition || null);
         } catch (error) {
             console.error("Failed to fetch leaderboard:", error);
@@ -61,16 +54,10 @@ export default function Leaderboard() {
 
     // Fetch leaderboard on mount and filter changes
     useEffect(() => {
-        fetchLeaderboard(pagination.currentPage);
+        fetchLeaderboard();
     }, [filters]);
 
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= pagination.totalPages) {
-            setPagination({ ...pagination, currentPage: newPage });
-            fetchLeaderboard(newPage);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-    };
+
 
     const handleFilterChange = (timeframe: string) => {
         setFilters({ ...filters, timeframe });
@@ -79,7 +66,7 @@ export default function Leaderboard() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        fetchLeaderboard(1);
+        fetchLeaderboard();
     };
 
     const handleLogout = () => {
@@ -243,54 +230,7 @@ export default function Leaderboard() {
                     </div>
                 </div>
 
-                {/* Pagination */}
-                {!loading && leaderboard.length > 0 && (
-                    <div className="mt-6 flex justify-center items-center gap-2">
-                        <button
-                            onClick={() => handlePageChange(pagination.currentPage - 1)}
-                            disabled={pagination.currentPage === 1}
-                            className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <FaChevronLeft />
-                        </button>
 
-                        <div className="flex items-center gap-2">
-                            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                                let pageNumber;
-                                if (pagination.totalPages <= 5) {
-                                    pageNumber = i + 1;
-                                } else if (pagination.currentPage <= 3) {
-                                    pageNumber = i + 1;
-                                } else if (pagination.currentPage >= pagination.totalPages - 2) {
-                                    pageNumber = pagination.totalPages - 4 + i;
-                                } else {
-                                    pageNumber = pagination.currentPage - 2 + i;
-                                }
-
-                                return (
-                                    <button
-                                        key={i}
-                                        onClick={() => handlePageChange(pageNumber)}
-                                        className={`px-4 py-2 rounded-lg font-bold transition-colors ${pagination.currentPage === pageNumber
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
-                                            }`}
-                                    >
-                                        {pageNumber}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <button
-                            onClick={() => handlePageChange(pagination.currentPage + 1)}
-                            disabled={pagination.currentPage === pagination.totalPages}
-                            className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <FaChevronRight />
-                        </button>
-                    </div>
-                )}
             </main>
         </div>
     );
