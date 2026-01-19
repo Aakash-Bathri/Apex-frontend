@@ -554,6 +554,8 @@ function GameResult({ results, currentUser, game }: any) {
     const ratingChange = results.ratingChanges?.[currentUser?._id]?.change || 0;
     const newRating = results.ratingChanges?.[currentUser?._id]?.newRating || 0;
 
+    const rankInfo = getRankInfo(newRating);
+
     return (
         <div className="min-h-screen bg-[#0a0e27] text-white flex items-center justify-center p-4">
             <div className="max-w-2xl w-full bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
@@ -578,18 +580,36 @@ function GameResult({ results, currentUser, game }: any) {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
+                    {/* Match Score */}
+                    <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
+                        <div className="text-white/40 text-xs uppercase font-black mb-2 tracking-widest">Match Score</div>
+                        <div className="text-4xl font-black text-cyan-400">
+                            {game.players.find((p: any) => (p.userId._id || p.userId).toString() === currentUser?._id)?.score || 0}
+                        </div>
+                        <div className="text-xs text-white/40 font-medium mt-1">Points Earned</div>
+                    </div>
+
+                    {/* Final Rating */}
                     <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
                         <div className="text-white/40 text-xs uppercase font-black mb-2 tracking-widest">Final Rating</div>
                         <div className="text-4xl font-black">{newRating}</div>
-                        <div className={`text-lg font-bold ${ratingChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {ratingChange >= 0 ? '+' : ''}{ratingChange}
+                        <div className={`text-sm font-bold flex items-center justify-center gap-1 ${ratingChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className="opacity-50 text-white">{newRating - ratingChange}</span>
+                            <span>→</span>
+                            <span>{newRating}</span>
+                            <span>({ratingChange > 0 ? '+' : ''}{ratingChange})</span>
                         </div>
                     </div>
+
+                    {/* Final Rank */}
                     <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
                         <div className="text-white/40 text-xs uppercase font-black mb-2 tracking-widest">Final Rank</div>
-                        <div className={`text-2xl font-black ${getRankInfo(newRating).rank.color}`}>
-                            {getRankInfo(newRating).rank.name}
+                        <div className={`text-2xl font-black ${rankInfo.rank.color}`}>
+                            {rankInfo.rank.name}
+                        </div>
+                        <div className="text-xs text-white/40 font-medium mt-1">
+                            {rankInfo.nextRank ? `${rankInfo.pointsToNext} to ${rankInfo.nextRank.name}` : "Max Rank"}
                         </div>
                     </div>
                 </div>
